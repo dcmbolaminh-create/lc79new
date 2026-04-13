@@ -1,0 +1,66 @@
+<?php
+header('Content-Type: application/json');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET');
+header('Access-Control-Allow-Headers: Content-Type');
+
+$api_url = "http://160.250.247.143:9000/api/latest";
+
+function callAPI($url) {
+    $ch = curl_init();
+    curl_setopt($ch, CURLOPT_URL, $url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, array(
+        'Content-Type: application/json'
+    ));
+    
+    $response = curl_exec($ch);
+    $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    
+    if ($http_code == 200 && $response) {
+        return json_decode($response, true);
+    }
+    
+    return null;
+}
+
+$data = callAPI($api_url);
+
+if ($data && isset($data['phien_hien_tai'])) {
+    // Đếm số lượng đỏ trắng
+    $trang_count = 0;
+    $do_count = 0;
+    foreach ($data['du_doan_xuc_xac'] as $x) {
+        if ($x == 'trang') $trang_count++;
+        else $do_count++;
+    }
+    
+    // Xác định cửa đặt
+    if ($do_count == 4) $cua_dat = "4_do";
+    elseif ($trang_count == 4) $cua_dat = "4_trang";
+    elseif ($trang_count == 3 && $do_count == 1) $cua_dat = "1_do_3_trang";
+    elseif ($trang_count == 1 && $do_count == 3) $cua_dat = "1_trang_3_do";
+    else $cua_dat = "khong_xac_dinh";
+    
+    $result = [
+        'success' => true,
+        'phien' => $data['phien'],
+        'phien_hien_tai' => $data['phien_hien_tai'],
+        'ket_qua' => $data['ket_qua'],
+        'du_doan' => $data['du_doan'],
+        'du_doan_xuc_xac' => $data['du_doan_xuc_xac'],
+        'cua_dat' => $cua_dat,
+        'so_trang' => $trang_count,
+        'so_do' => $do_count
+    ];
+    
+    echo json_encode($result, JSON_UNESCAPED_UNICODE);
+} else {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Không thể lấy dữ liệu từ API dự đoán'
+    ], JSON_UNESCAPED_UNICODE);
+}
+?>
